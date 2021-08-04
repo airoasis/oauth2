@@ -18,7 +18,7 @@ import (
 )
 
 func main() {
-	pgxConn, _ := pgx.Connect(context.TODO(), "postgres://postgres:postgres@localhost:5432/postgres")
+	pgxConn, _ := pgx.Connect(context.TODO(), "postgres://postgres:postgres@postgres:5432/postgres")
 
 	manager := manage.NewDefaultManager()
 
@@ -59,7 +59,7 @@ func main() {
 				"username": username,
 				"password": password,
 			}).
-			Post("http://localhost:8080/users/oauth")
+			Post("http://auth:8080/users/oauth")
 
 		if err != nil {
 			log.Println("ERROR sending the request")
@@ -75,5 +75,5 @@ func main() {
 		srv.HandleTokenRequest(w, r)
 	})
 
-	log.Fatal(http.ListenAndServe(":9096", nil))
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
