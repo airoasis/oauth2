@@ -58,7 +58,7 @@ func main() {
 			SetBody(map[string]interface{}{
 				"username": username,
 				"password": password,
-			}).Post("http://auth:8080/users/oauth")
+			}).Post("http://user:8080/users/oauth")
 
 		if err != nil {
 			log.Println("ERROR sending the request")
