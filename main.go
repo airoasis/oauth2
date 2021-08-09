@@ -14,8 +14,11 @@ import (
 	"github.com/vgarvardt/go-pg-adapter/pgx4adapter"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 )
+
+var client = resty.New()
 
 func main() {
 	pgxConn, _ := pgx.Connect(context.TODO(), "postgres://postgres:postgres@postgres:5432/postgres")
@@ -52,8 +55,6 @@ func main() {
 	})
 
 	srv.SetPasswordAuthorizationHandler(func(username, password string) (userID string, err error) {
-		client := resty.New()
-
 		resp, err := client.R().
 			SetBody(map[string]interface{}{
 				"username": username,
@@ -72,6 +73,42 @@ func main() {
 
 	http.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
 		srv.HandleTokenRequest(w, r)
+	})
+
+	http.HandleFunc("/check/", func(w http.ResponseWriter, r *http.Request) {
+		token, err := srv.ValidationBearerToken(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+
+		originalPath := r.Header.Get("x-envoy-original-path")
+		log.Println("originalPath: " + originalPath)
+
+		//if the request is for the cloud agent
+		if strings.HasPrefix(originalPath, "/agent/api") {
+			resp, err := client.R().
+				SetQueryParams(map[string]string{
+					"username": token.GetUserID(),
+				}).Get("http://user:8080/users")
+
+			if err != nil {
+				log.Println("ERROR sending the request")
+				return
+			}
+
+			var acapyToken string
+
+			if resp.StatusCode() == 200 {
+				acapyToken = gjson.Get(resp.String(), "acapyToken").String()
+				log.Println("acapyToken: " + acapyToken)
+			} else {
+				http.Error(w, err.Error(), http.StatusUnauthorized)
+				return
+			}
+
+			w.Header().Set("Authorization", "Bearer "+acapyToken)
+		}
 	})
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
